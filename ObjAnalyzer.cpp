@@ -1,19 +1,10 @@
-#include <filesystem>
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <memory>
-#include "Processors.cpp"
-#include "OutputHandlers.cpp"
-#include "LogManager.cpp"
-using namespace std;
-namespace fs = std::filesystem;
+#include "ObjAnalyzer.h"
 
 int main(int argc, char* argv[])
 {
+	// create the logging manager first to allow logging of arg issues
 	LogManager loggingManager;
-	CmdArgParcer argParser(argc, argv, loggingManager);
+	ProgramArgParcer argParser(argc, argv, loggingManager);
 
 	if (argParser.hasHelpArg())
 	{
@@ -22,28 +13,28 @@ int main(int argc, char* argv[])
 	}
 	loggingManager.enableLoggingToFile(argParser.getLogPath());
 
-
-	try {
+	try
+	{
 		const ProcessingSettings settings = argParser.asSettings();
 
-		unique_ptr<ResultOutputterBase> outputter;
+		std::unique_ptr<ResultOutputterBase> outputFormatter;
 		switch (settings.mode)
 		{
-		case ProcessingMode::Overview: outputter = make_unique<ResultOutputterOverview>(settings, loggingManager); break;
-		case ProcessingMode::Validate: outputter = make_unique<ResultOutputterValidate>(settings, loggingManager); break;
-		case ProcessingMode::Budget:   outputter = make_unique<ResultOutputterBudget>(settings, loggingManager); break;
+		case ProcessingMode::Overview: outputFormatter = std::make_unique<ResultOutputterOverview>(settings, loggingManager); break;
+		case ProcessingMode::Validate: outputFormatter = std::make_unique<ResultOutputterValidate>(settings, loggingManager); break;
+		case ProcessingMode::Budget:   outputFormatter = std::make_unique<ResultOutputterBudget>(settings, loggingManager); break;
 		}
 
-		for (const fs::path& filepath : settings.inputFilePaths)
+		for (const std::filesystem::path& filepath : settings.inputFilePaths)
 		{
-			FileProcessor_Obj processor(filepath, settings, loggingManager);
+			FileProcessor processor(filepath, settings, loggingManager);
 			processor.processFile();
 
-			if (outputter)
+			if (outputFormatter)
 			{
-				for (const AssetData& asset : processor.assets)
+				for (const PrimDataCollection& asset : processor.PrimDataCollections)
 				{
-					outputter->outputReports(asset);
+					outputFormatter->outputReports(asset);
 				}
 			}
 		}
@@ -51,7 +42,7 @@ int main(int argc, char* argv[])
 	}
 	catch (LoggedErrorException e)
 	{
-		cout << e.what();
+		std::cout << e.what();
 		return 1;
-	}
+	};
 };
